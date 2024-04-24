@@ -12,13 +12,13 @@ NucleosAntiSpamBundle
 [![Code Coverage](https://codecov.io/gh/nucleos/NucleosAntiSpamBundle/graph/badge.svg)](https://codecov.io/gh/nucleos/NucleosAntiSpamBundle)
 [![Type Coverage](https://shepherd.dev/github/nucleos/NucleosAntiSpamBundle/coverage.svg)](https://shepherd.dev/github/nucleos/NucleosAntiSpamBundle)
 
-This bundle provides some basic features to reduce spam in Symfony. It is the successor of `core23/antispam-bundle`, but not related to `isometriks/spam-bundle`.
+This bundle provides some basic features to reduce spam in Symfony.
 
 ## Features
 
-* **Honeypot protection for forms:** An additional "hidden" (i.e. made invisible with CSS) field will be added to your form. Whoever fills out this field, is considered to be a spam bot.
+* **Honeypot protection for forms:** An additional "hidden" (i.e. made invisible with CSS) field will be added to your form. Whoever fills out this field, is considered to be a spambot.
 
-* **Time protection for forms:** The time between *displaying* the form and *submitting* the form is measured. Anybody who submits the form quicker than a certain number of seconds, is considered to be a spam bot. The timestamp is stored in the session.
+* **Time protection for forms:** The time between *displaying* the form and *submitting* the form is measured. Anybody who submits the form quicker than a certain number of seconds, is considered to be a spambot. The timestamp is stored in the session.
 
 * **Email address obfuscation filter for Twig:** To prevent spam harvest bots from detecting your email address, they are obfuscated by e.g. replacing `@` with `[AT]`. The filter will find email addresses automatically, so you can apply it to your entire text.
 
@@ -32,7 +32,7 @@ composer require nucleos/antispam-bundle
 
 ### Enable the Bundle
 
-Then, enable the bundle by adding it to the list of registered bundles in `config/bundles.php` file of your project:
+In older versions of Symfony, you need to enable it manually:
 
 ```php
 // config/bundles.php
@@ -47,20 +47,39 @@ return [
 
 ### Form based protection
 
-Create a form on the fly:
+In a controller:
 
 ```php
-$this->createForm(CustomFormType:class, null, array(
+$this->createForm(CustomFormType:class, null, [
     // Time protection
     'antispam_time'     => true,
-    'antispam_time_min' => 10,
+    'antispam_time_min' => 10, // seconds
     'antispam_time_max' => 60,
 
     // Honeypot protection
     'antispam_honeypot'       => true,
     'antispam_honeypot_class' => 'hide-me',
     'antispam_honeypot_field' => 'email-repeat',
-))
+])
+```
+
+In a form class:
+
+```php
+class MyType extends AbstractType
+{
+    // ...
+
+    public function configureOptions(OptionsResolver $resolver): void
+    {
+        $resolver->setDefaults([
+            // ...
+            'antispam_time'     => true,
+            'antispam_time_min' => 10,
+            // same as above
+        ]);
+    }
+}
 ```
 
 ### Twig email address obfuscation
@@ -86,23 +105,6 @@ document.addEventListener('DOMContentLoaded', () => {
 It is recommended to use [webpack](https://webpack.js.org/) / [webpack-encore](https://github.com/symfony/webpack-encore)
 to include the JavaScript library in your page. This file is located in the `assets` folder.
 
-### Global protection
-
-Add protection to all forms using the configuration:
-
-```yaml
-# config/packages/nucleos_antispam.yaml
-
-nucleos_antispam:
-    # Time protection
-    time:
-        global: true
-
-    # Honeypot protection
-    honeypot:
-        global: true
-```
-
 ### Configure the Bundle
 
 Create a configuration file called `nucleos_antispam.yaml`:
@@ -122,7 +124,7 @@ nucleos_antispam:
     time:
         min: 5
         max: 3600
-        global: false
+        global: true # This will add antispam to all forms
 
     # Honeypot protection
     honeypot:
@@ -130,6 +132,12 @@ nucleos_antispam:
         class: 'hidden'
         global: false
         provider: 'nucleos_antispam.provider.session'
+
+when@test:
+    nucleos_antispam:
+        time:
+            # This will allow you to submit forms in your tests without having to fake the wait
+            min: 0
 ```
 
 ## License

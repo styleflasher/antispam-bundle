@@ -18,7 +18,6 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
-use Symfony\Component\Form\FormInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class AntiSpamTimeListener implements EventSubscriberInterface
@@ -55,8 +54,7 @@ final class AntiSpamTimeListener implements EventSubscriberInterface
     public static function getSubscribedEvents(): array
     {
         return [
-            FormEvents::PRE_SUBMIT  => 'preSubmit',
-            FormEvents::POST_SUBMIT => 'postSubmit',
+            FormEvents::PRE_SUBMIT => 'preSubmit',
         ];
     }
 
@@ -64,35 +62,16 @@ final class AntiSpamTimeListener implements EventSubscriberInterface
     {
         $form = $event->getForm();
 
-        if (!$this->isApplicableToForm($form)) {
+        if (!$form->isRoot() || null === $form->getConfig()->getOption('compound')) {
             return;
         }
 
         // Out of time hit
         if (!$this->timeProvider->isValid($form->getName(), $this->options)) {
-            $form->addError(new FormError($this->translator->trans(static::ERROR_MESSAGE, [], static::TRANSLATION_DOMAIN)));
+            $form->addError(new FormError($this->translator->trans(self::ERROR_MESSAGE, [], self::TRANSLATION_DOMAIN)));
         }
 
         // Remove old entry
         $this->timeProvider->removeFormProtection($form->getName());
-    }
-
-    public function postSubmit(FormEvent $event): void
-    {
-        $form = $event->getForm();
-
-        if (!$this->isApplicableToForm($form)) {
-            return;
-        }
-
-        // If form has errors, set the time again
-        if (!$form->isValid()) {
-            $this->timeProvider->createFormProtection($form->getName());
-        }
-    }
-
-    private function isApplicableToForm(FormInterface $form): bool
-    {
-        return $form->isRoot() && null !== $form->getConfig()->getOption('compound');
     }
 }
